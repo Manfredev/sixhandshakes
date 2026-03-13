@@ -1,0 +1,32 @@
+/* ============================================
+   SIX HANDSHAKES - Design Tokens
+   "The Dark Room" aesthetic
+   ============================================ */
+
+:root {
+  /* Surfaces */
+  --bg: #0A0A0C;
+  --surface: #14141A;
+  --surface-up: #1E1E28;
+
+  /* Accents */
+  --red: #E63228;
+  --red-glow: #FF6B5A;
+  --gold: #C4A35A;
+
+  /* Text */
+  --text: #E8E4DF;
+  --text-dim: #9A9490;
+  --paper: #F5F0E8;
+
+  /* Typography */
+  --font-display: 'DM Serif Display', serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  /* Layout */
+  --radius: 8px;
+  --panel-width: 360px;
+}
