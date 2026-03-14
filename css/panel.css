@@ -1,0 +1,212 @@
+/* ============================================
+   panel.css — Side panel, chain display, person detail
+   ============================================ */
+
+#side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--panel-width);
+  height: 100%;
+  background: var(--surface);
+  border-left: 1px solid var(--surface-up);
+  transform: translateX(100%);
+  transition: transform 0.4s var(--ease);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+}
+
+body.panel-open #side-panel {
+  transform: translateX(0);
+}
+
+#panel-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+  z-index: 1;
+}
+
+#panel-close:hover {
+  color: var(--text);
+  background: var(--surface-up);
+}
+
+.panel-content {
+  padding: 56px 20px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Panel scrollbar */
+.panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel-content::-webkit-scrollbar-track {
+  background: var(--surface-up);
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+  background: var(--red-glow);
+  border-radius: 3px;
+}
+
+.panel-content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--red-glow) var(--surface-up);
+}
+
+/* Panel sections */
+.panel-section {
+  margin-bottom: 28px;
+}
+
+.panel-section label {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.panel-section input[type="text"] {
+  width: 100%;
+  background: var(--surface-up);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s var(--ease);
+}
+
+#search-input:focus {
+  border-color: var(--red);
+}
+
+#target-input:focus {
+  border-color: var(--gold);
+}
+
+.panel-section input[type="text"]::placeholder {
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
+#btn-find-path {
+  width: 100%;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--gold);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+
+#btn-find-path:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+#btn-find-path:not(:disabled):hover {
+  filter: brightness(1.15);
+}
+
+/* Chain display */
+#chain-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.chain-node {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  width: 100%;
+}
+
+.chain-photo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--surface-up);
+  flex-shrink: 0;
+}
+
+.chain-photo-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--surface-up);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.chain-name {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.chain-role {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.chain-connector {
+  width: 2px;
+  height: 20px;
+  background: var(--red);
+  opacity: 0.4;
+  margin: 0 auto;
+}
+
+/* Person detail */
+#person-detail {
+  padding-top: 8px;
+}
+
+.detail-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.detail-bio {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}

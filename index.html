@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta property="og:title" content="Six Handshakes">
+  <meta property="og:description" content="Discover the chain of real-life meetings connecting any two people. Everyone is linked through at most six handshakes.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Six Handshakes">
+  <meta name="twitter:description" content="Discover the chain of real-life meetings connecting any two people.">
   <title>Six Handshakes</title>
 
   <!-- Google Fonts -->
@@ -22,7 +28,8 @@
   <header id="header">
     <h1>SIX HANDSHAKES</h1>
     <div class="header-actions">
-      <button id="btn-upload">UPLOAD PHOTO</button>
+      <button id="btn-upload" title="Upload photo (⌘U)">UPLOAD PHOTO</button>
+      <button id="btn-play" class="ghost">PLAY</button>
       <button id="btn-about" class="ghost">ABOUT</button>
     </div>
   </header>
@@ -51,8 +58,15 @@
 
     <!-- Empty state prompt -->
     <div id="empty-state">
+      <div class="empty-number">6</div>
       <p class="empty-title">Who have you met?</p>
-      <p class="empty-sub">Upload a photo with a famous person<br>or type their name to begin</p>
+      <p class="empty-sub"><span id="typewriter-text"></span><span class="typewriter-cursor">|</span></p>
+      <div class="empty-pills">
+        <span class="empty-pills-label">TRY:</span>
+        <button class="example-pill" data-name="Albert Einstein">Einstein</button>
+        <button class="example-pill" data-name="Taylor Swift">Taylor Swift</button>
+        <button class="example-pill" data-name="Elon Musk">Elon Musk</button>
+      </div>
       <div class="empty-actions">
         <button id="btn-start">UPLOAD PHOTO</button>
         <span class="empty-or">or</span>
@@ -60,6 +74,15 @@
           <input type="text" id="name-input" placeholder="Type a famous person's name..." autocomplete="off">
           <button id="btn-name-go" disabled>GO</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Developing overlay for photo processing -->
+    <div id="developing-overlay" class="hidden">
+      <div class="developing-frame">
+        <img id="developing-photo" alt="Developing...">
+        <div class="developing-wash"></div>
+        <div class="developing-text">DEVELOPING</div>
       </div>
     </div>
   </main>
@@ -70,7 +93,7 @@
     <div class="panel-content">
       <section class="panel-section" id="search-section">
         <label>EXPLORE</label>
-        <input type="text" id="search-input" placeholder="Search for a person...">
+        <input type="text" id="search-input" placeholder="Search for a person..." title="Search (⌘K)">
       </section>
       <section class="panel-section" id="target-section">
         <label>TARGET</label>
@@ -80,6 +103,16 @@
       <section class="panel-section" id="chain-section">
         <label>CONNECTION CHAIN</label>
         <div id="chain-display"></div>
+        <div id="share-actions" class="hidden">
+          <button id="btn-share-text" title="Copy connection as text">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            COPY TEXT
+          </button>
+          <button id="btn-share-image" title="Save as shareable image">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            SAVE IMAGE
+          </button>
+        </div>
       </section>
       <section class="panel-section" id="detail-section">
         <div id="person-detail"></div>
@@ -119,6 +152,13 @@
     <span id="stat-nodes">0 people</span> · <span id="stat-edges">0 connections</span>
   </div>
 
+  <!-- Budget Pill -->
+  <div id="budget-pill" title="Gemini AI requests remaining today">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>
+    <span id="budget-count">20</span>
+    <span class="budget-sep">/ 20</span>
+  </div>
+
   <!-- Toast Notifications -->
   <div id="toasts"></div>
 
@@ -135,6 +175,87 @@
 
   <!-- Reveal Overlay (for big number animation) -->
   <div id="reveal-overlay"></div>
+
+  <!-- Mode Selection -->
+  <div id="mode-overlay" class="hidden">
+    <div class="mode-content">
+      <button class="mode-close">&times;</button>
+      <h2 class="mode-heading">PLAY</h2>
+      <div class="mode-cards">
+        <button class="mode-card mode-daily" id="btn-mode-daily">
+          <div class="mode-card-badge" id="daily-badge">DAILY #1</div>
+          <div class="mode-card-title">Daily Handshake</div>
+          <div class="mode-card-desc">Same puzzle for everyone. One chance per day.</div>
+          <div class="mode-card-meta">
+            <span class="mode-streak" id="mode-streak"></span>
+            <span class="mode-status" id="daily-status"></span>
+          </div>
+        </button>
+        <button class="mode-card" id="btn-mode-select">
+          <div class="mode-card-title">Select</div>
+          <div class="mode-card-desc">Pick the best connection from four options</div>
+        </button>
+      </div>
+      <button class="mode-back" id="btn-mode-back">BACK TO EXPLORE</button>
+    </div>
+  </div>
+
+  <!-- Game Screen (Graph-based) -->
+  <div id="game-screen" class="hidden">
+    <div id="game-hud">
+      <button id="game-close">&times;</button>
+      <div id="game-step-label">HANDSHAKE <span id="game-step-num">1</span> / <span id="game-step-total">3</span></div>
+      <div id="game-prompt-bar">Find the shortest path to <strong id="game-target-name"></strong></div>
+    </div>
+    <svg id="game-graph"></svg>
+    <div id="game-tooltip" class="hidden"></div>
+  </div>
+
+  <!-- End Screen -->
+  <div id="end-screen" class="hidden">
+    <div class="end-content">
+      <div class="end-grade" id="end-grade"></div>
+      <div class="end-title" id="end-title"></div>
+      <div class="end-path-label">YOUR HANDSHAKES</div>
+      <div class="end-dots" id="end-dots"></div>
+      <div class="end-stats-row">
+        <div class="end-stat">
+          <span class="end-stat-val" id="end-steps">0</span>
+          <span class="end-stat-lbl">handshakes</span>
+        </div>
+        <div class="end-stat">
+          <span class="end-stat-val" id="end-optimal">0</span>
+          <span class="end-stat-lbl">optimal</span>
+        </div>
+        <div class="end-stat">
+          <span class="end-stat-val" id="end-over">+0</span>
+          <span class="end-stat-lbl">over par</span>
+        </div>
+      </div>
+      <div class="end-actions">
+        <button id="btn-end-share">SHARE RESULT</button>
+        <button id="btn-end-stats" class="ghost">STATISTICS</button>
+        <button id="btn-end-explore" class="ghost">BACK TO EXPLORE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics Modal -->
+  <div id="stats-modal" class="hidden">
+    <div class="stats-content">
+      <button class="stats-close">&times;</button>
+      <h2 class="stats-heading">STATISTICS</h2>
+      <div class="stats-grid">
+        <div class="stats-item"><span class="stats-val" id="stats-played">0</span><span class="stats-lbl">Played</span></div>
+        <div class="stats-item"><span class="stats-val" id="stats-win-pct">0%</span><span class="stats-lbl">Win %</span></div>
+        <div class="stats-item"><span class="stats-val" id="stats-cur-streak">0</span><span class="stats-lbl">Streak</span></div>
+        <div class="stats-item"><span class="stats-val" id="stats-max-streak">0</span><span class="stats-lbl">Max</span></div>
+      </div>
+      <h3 class="stats-dist-heading">SCORE DISTRIBUTION</h3>
+      <div id="stats-distribution"></div>
+      <button id="btn-stats-close" class="stats-done">DONE</button>
+    </div>
+  </div>
 
   <!-- App -->
   <script type="module" src="js/app.js"></script>

@@ -8,11 +8,17 @@
  * Loaded as type="module" from index.html.
  */
 
-import { createGraph } from './graph.js';
-import { createGeminiClient } from './gemini.js';
+import { createGraph } from './graph/graph.js';
+import { createGeminiClient } from './gemini/gemini.js';
 import { createWikipediaService } from './wikipedia.js';
 import { initUpload } from './upload.js';
-import { createUI } from './ui.js';
+import { createUI } from './ui/ui.js';
+import { createArcadeEngine } from './game/arcade.js';
+import { createDailyManager } from './game/daily.js';
+import { createSelectMode } from './game/select-mode.js';
+import { makeExploreNodeId } from './utils/ids.js';
+import { delay } from './utils/helpers.js';
+import { readApiKey, saveApiKey, removeApiKey } from './utils/storage.js';
 
 const LOG_PREFIX = '[App]';
 
@@ -23,6 +29,9 @@ let gemini   = null;
 let wikipedia = null;
 let upload   = null;
 let ui       = null;
+let arcade   = null;
+let daily    = null;
+let selectMode = null;
 
 /** The name of the person the user wants to reach */
 let targetPerson = null;
@@ -32,16 +41,8 @@ const nodeNameMap = new Map();
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-/**
- * Generate a consistent, deterministic node ID from a person's name.
- * Two calls with the same name will return the same ID.
- *
- * @param {string} name
- * @returns {string}
- */
-function generateNodeId(name) {
-  return 'node_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-}
+// generateNodeId is now makeExploreNodeId from utils/ids.js
+const generateNodeId = makeExploreNodeId;
 
 /**
  * Return the user node's name, or the first node added to the graph.
@@ -62,6 +63,26 @@ function getUserOrFirstNode() {
  */
 function refreshStats() {
   ui.updateStats(graph.getNodes().length, graph.getEdges().length);
+}
+
+/**
+ * Update the budget pill with current daily usage.
+ */
+function refreshBudget() {
+  if (!gemini) return;
+  const pill = document.getElementById('budget-pill');
+  const countEl = document.getElementById('budget-count');
+  if (!pill || !countEl) return;
+
+  const usage = gemini.getDailyUsage();
+  countEl.textContent = usage.remaining;
+
+  pill.classList.remove('budget-low', 'budget-critical');
+  if (usage.remaining <= 5) {
+    pill.classList.add('budget-critical');
+  } else if (usage.remaining <= 10) {
+    pill.classList.add('budget-low');
+  }
 }
 
 /**
@@ -94,6 +115,7 @@ function findTargetNode() {
  */
 async function handlePhotoUpload(base64, mimeType, fileName) {
   ui.toast('Analyzing photo...', 'info');
+  showDevelopingOverlay(`data:${mimeType};base64,${base64}`);
 
   try {
     const result = await gemini.analyzePhoto(base64, mimeType);
@@ -104,6 +126,8 @@ async function handlePhotoUpload(base64, mimeType, fileName) {
       ui.openPanel();
       return;
     }
+
+    hideDevelopingOverlay();
 
     // Create the user node with the uploaded photo as a data URL
     const userPhotoUrl = `data:${mimeType};base64,${base64}`;
@@ -146,9 +170,13 @@ async function handlePhotoUpload(base64, mimeType, fileName) {
       await handleNodeExpand(firstNode);
     }
 
+    refreshBudget();
+
   } catch (err) {
     if (err.name === 'GeminiAuthError') {
       await handleAuthError();
+    } else if (err.name === 'GeminiRateLimitError') {
+      ui.toast(err.message, 'error');
     } else {
       console.error(LOG_PREFIX, 'Photo analysis failed:', err);
       ui.toast('Photo analysis failed. Try again or enter a name manually.', 'error');
@@ -208,6 +236,7 @@ async function handleNodeExpand(node) {
     node.expanded = true;
     node.expanding = false;
     refreshStats();
+    refreshBudget();
 
     // Check if any new node matches the target
     if (targetPerson) {
@@ -222,6 +251,8 @@ async function handleNodeExpand(node) {
     node.expanding = false;
     if (err.name === 'GeminiAuthError') {
       await handleAuthError();
+    } else if (err.name === 'GeminiRateLimitError') {
+      ui.toast(err.message, 'error');
     } else {
       console.error(LOG_PREFIX, 'Expand failed:', err);
       ui.toast(`${err.message || 'Failed to expand ' + node.name}`, 'error');
@@ -335,6 +366,7 @@ async function handleTargetSet(targetName) {
     }
 
     refreshStats();
+    refreshBudget();
 
     // Wait briefly for the graph to settle, then animate the path
     await delay(800);
@@ -354,6 +386,8 @@ async function handleTargetSet(targetName) {
 
     ui.showChain(chainData);
     ui.openPanel();
+    ui.setShareData(chainData, result.degrees);
+    ui.showShareActions();
     ui.setTargetStatus('Path found!');
 
     // Trigger the big reveal animation
@@ -362,6 +396,9 @@ async function handleTargetSet(targetName) {
   } catch (err) {
     if (err.name === 'GeminiAuthError') {
       await handleAuthError();
+    } else if (err.name === 'GeminiRateLimitError') {
+      ui.setTargetStatus('Rate limited — try again shortly.');
+      ui.toast(err.message, 'error');
     } else {
       console.error(LOG_PREFIX, 'Path finding failed:', err);
       ui.setTargetStatus('Path search failed. Try again.');
@@ -484,11 +521,11 @@ async function resolveAndSetPhoto(nodeId, personName, wikiTitle) {
  */
 async function handleAuthError() {
   ui.toast('Invalid API key. Please enter a valid Gemini key.', 'error');
-  localStorage.removeItem('gemini-api-key');
+  removeApiKey();
 
   try {
     const newKey = await ui.showApiKeyModal();
-    localStorage.setItem('gemini-api-key', newKey);
+    saveApiKey(newKey);
     gemini = createGeminiClient(newKey);
     ui.toast('API key updated.', 'success');
   } catch (dismissErr) {
@@ -497,13 +534,20 @@ async function handleAuthError() {
   }
 }
 
-/**
- * Simple delay helper for async flows.
- * @param {number} ms
- * @returns {Promise<void>}
- */
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+// delay() is now imported from utils/helpers.js
+
+function showDevelopingOverlay(dataUrl) {
+  const overlay = document.getElementById('developing-overlay');
+  const photo = document.getElementById('developing-photo');
+  if (!overlay || !photo) return;
+  photo.src = dataUrl;
+  overlay.classList.remove('hidden');
+}
+
+function hideDevelopingOverlay() {
+  const overlay = document.getElementById('developing-overlay');
+  if (!overlay) return;
+  overlay.classList.add('hidden');
 }
 
 // ── Initialization ──────────────────────────────────────────────────
@@ -522,11 +566,11 @@ async function init() {
   ui = createUI();
 
   // 2. Check for API key
-  let apiKey = localStorage.getItem('gemini-api-key');
+  let apiKey = readApiKey();
   if (!apiKey) {
     try {
       apiKey = await ui.showApiKeyModal();
-      localStorage.setItem('gemini-api-key', apiKey);
+      saveApiKey(apiKey);
     } catch (err) {
       // User dismissed modal — show a toast and keep trying
       ui.toast('API key is required. Click UPLOAD PHOTO or ABOUT to get started.', 'info');
@@ -541,6 +585,9 @@ async function init() {
   }
   wikipedia = createWikipediaService();
 
+  // Arcade mode
+  arcade = createArcadeEngine();
+
   // 4. Initialize graph
   const svgEl = document.getElementById('graph-canvas');
   graph = createGraph(svgEl);
@@ -548,6 +595,9 @@ async function init() {
   // 5. Wire graph callbacks
   graph.onNodeClick(handleNodeClick);
   graph.onNodeExpand(handleNodeExpand);
+
+  selectMode = createSelectMode(graph, wikipedia);
+  daily = createDailyManager(gemini, wikipedia);
 
   // 6. Initialize upload
   upload = initUpload({
@@ -592,6 +642,98 @@ async function init() {
     await handleSearch(name);
   });
 
+  // Example pills
+  document.querySelectorAll('.example-pill').forEach(pill => {
+    pill.addEventListener('click', async () => {
+      const name = pill.dataset.name;
+      if (!name) return;
+      nameInput.value = name;
+      await ensureApiKey();
+      await handleSearch(name);
+    });
+  });
+
+  // Play button opens mode overlay
+  document.getElementById('btn-play').addEventListener('click', () => {
+    const overlay = document.getElementById('mode-overlay');
+    overlay.classList.remove('hidden');
+
+    // Update daily badge
+    const num = daily.getPuzzleNumber();
+    document.getElementById('daily-badge').textContent = `DAILY #${num}`;
+
+    const streak = daily.getStreak();
+    const streakEl = document.getElementById('mode-streak');
+    streakEl.textContent = streak.current > 0 ? `\u{1F525} ${streak.current}` : '';
+
+    const statusEl = document.getElementById('daily-status');
+    statusEl.textContent = daily.hasPlayedToday() ? '\u2713 PLAYED' : '';
+  });
+
+  // Mode close / back
+  document.getElementById('mode-overlay').querySelector('.mode-close').addEventListener('click', () => {
+    document.getElementById('mode-overlay').classList.add('hidden');
+  });
+  document.getElementById('btn-mode-back').addEventListener('click', () => {
+    document.getElementById('mode-overlay').classList.add('hidden');
+  });
+
+  // Daily mode
+  document.getElementById('btn-mode-daily').addEventListener('click', async () => {
+    document.getElementById('mode-overlay').classList.add('hidden');
+
+    if (daily.hasPlayedToday()) {
+      ui.toast('You already played today! Come back tomorrow.');
+      return;
+    }
+
+    if (!gemini) {
+      ui.toast('Demo mode — using sample puzzles');
+    } else {
+      ui.toast('Generating daily puzzle...');
+    }
+
+    try {
+      const puzzle = await daily.getTodaysPuzzle();
+      arcade.startGame(puzzle);
+      selectMode.startGame(puzzle, arcade, daily);
+      refreshBudget();
+    } catch (err) {
+      console.error('Daily puzzle error:', err);
+      ui.toast('Failed to generate puzzle. Try again.');
+      refreshBudget();
+    }
+  });
+
+  // Select mode (practice/random)
+  document.getElementById('btn-mode-select').addEventListener('click', async () => {
+    document.getElementById('mode-overlay').classList.add('hidden');
+
+    if (!gemini) {
+      ui.toast('Demo mode — using sample puzzles');
+    } else {
+      ui.toast('Generating puzzle...');
+    }
+
+    try {
+      const puzzle = await daily.generatePracticePuzzle('medium');
+      arcade.startGame(puzzle);
+      selectMode.startGame(puzzle, arcade, null); // no dailyManager for practice
+      refreshBudget();
+    } catch (err) {
+      console.error('Select mode error:', err);
+      ui.toast('Failed to generate puzzle. Try again.');
+      refreshBudget();
+    }
+  });
+
+  // Game close button
+  document.getElementById('game-close').addEventListener('click', () => {
+    if (selectMode.isActive()) {
+      selectMode.endGame();
+    }
+  });
+
   ui.onSearch(async (query) => {
     await ensureApiKey();
     handleSearch(query);
@@ -605,8 +747,35 @@ async function init() {
   // 8. Window resize
   window.addEventListener('resize', () => graph.resize());
 
+  // 9. Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    // Cmd/Ctrl+K → focus search
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      const panel = document.body.classList.contains('panel-open');
+      if (!panel) {
+        ui.openPanel();
+      }
+      document.getElementById('search-input').focus();
+    }
+
+    // Escape → close panel, clear highlight
+    if (e.key === 'Escape') {
+      ui.closePanel();
+      if (graph) graph.clearHighlight();
+    }
+
+    // Cmd/Ctrl+U → open upload
+    if ((e.metaKey || e.ctrlKey) && e.key === 'u') {
+      e.preventDefault();
+      ensureApiKey().then(() => upload.show()).catch(() => {});
+    }
+  });
+
   // Ready
   ui.toast('Ready. Upload a photo or search for someone.', 'info');
+  refreshBudget();
+  ui.startTypewriter();
 }
 
 /**
@@ -618,7 +787,7 @@ async function ensureApiKey() {
 
   try {
     const key = await ui.showApiKeyModal();
-    localStorage.setItem('gemini-api-key', key);
+    saveApiKey(key);
     gemini = createGeminiClient(key);
   } catch (err) {
     ui.toast('API key is required for this feature.', 'error');

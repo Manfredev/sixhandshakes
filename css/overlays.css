@@ -1,0 +1,275 @@
+/* ============================================
+   overlays.css — Upload, reveal, developing, API key modal
+   ============================================ */
+
+/* ---- Upload Overlay ---- */
+
+#upload-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.92);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s var(--ease), visibility 0.3s;
+}
+
+body.upload-active #upload-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+#upload-zone {
+  width: 400px;
+  height: 300px;
+  border: 2px dashed var(--text-dim);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+#upload-zone.drag-over {
+  border-color: var(--red);
+  border-style: solid;
+  box-shadow: 0 0 40px rgba(230, 50, 40, 0.15), inset 0 0 40px rgba(230, 50, 40, 0.05);
+  animation: upload-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes upload-pulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(230, 50, 40, 0.15), inset 0 0 40px rgba(230, 50, 40, 0.05); }
+  50%      { box-shadow: 0 0 60px rgba(230, 50, 40, 0.25), inset 0 0 60px rgba(230, 50, 40, 0.08); }
+}
+
+.upload-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-dim);
+  transition: color 0.2s var(--ease);
+}
+
+#upload-zone.drag-over .upload-icon {
+  color: var(--red);
+}
+
+.upload-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--text);
+}
+
+.upload-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ---- Reveal Overlay ---- */
+
+#reveal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 80;
+}
+
+#reveal-overlay .reveal-number {
+  font-family: var(--font-display);
+  font-size: 200px;
+  color: var(--red);
+  animation: reveal-shrink 1.2s var(--ease) forwards;
+}
+
+@keyframes reveal-shrink {
+  0%   { opacity: 0; transform: scale(2); }
+  20%  { opacity: 1; transform: scale(1); }
+  70%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.5) translateY(-20px); }
+}
+
+/* ---- Path Celebration ---- */
+
+.reveal-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particle-fly 1.2s ease-out forwards;
+}
+
+/* ---- Developing Overlay ---- */
+
+#developing-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  background: rgba(10, 10, 12, 0.8);
+  transition: opacity 0.4s var(--ease);
+}
+
+#developing-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.developing-frame {
+  width: 280px;
+  height: 280px;
+  border: 2px solid var(--surface-up);
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 60px rgba(230, 50, 40, 0.1);
+}
+
+.developing-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: sepia(1) contrast(1.5) brightness(0.3);
+  animation: photo-develop 2.5s ease-out forwards;
+}
+
+@keyframes photo-develop {
+  0%   { filter: sepia(1) contrast(1.5) brightness(0.3); }
+  40%  { filter: sepia(0.6) contrast(1.2) brightness(0.5); }
+  70%  { filter: sepia(0.2) contrast(1.1) brightness(0.8); }
+  100% { filter: sepia(0) contrast(1) brightness(1); }
+}
+
+.developing-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(230, 50, 40, 0.15) 0%,
+    transparent 50%,
+    transparent 100%
+  );
+  animation: wash-sweep 2.5s ease-out forwards;
+}
+
+@keyframes wash-sweep {
+  0%   { transform: translateY(-100%); opacity: 1; }
+  60%  { transform: translateY(50%); opacity: 0.6; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+.developing-text {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--red);
+  animation: dev-text-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes dev-text-pulse {
+  from { opacity: 0.4; }
+  to   { opacity: 1; }
+}
+
+/* ---- API Key Modal ---- */
+
+#api-key-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.88);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#api-key-modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: var(--surface);
+  border-top: 3px solid var(--red);
+  border-radius: var(--radius);
+  padding: 32px;
+  width: 400px;
+  max-width: 90vw;
+}
+
+.modal-content h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.modal-content p {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.modal-content input[type="password"] {
+  width: 100%;
+  background: var(--surface-up);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s var(--ease);
+  margin-bottom: 12px;
+}
+
+.modal-content input[type="password"]:focus {
+  border-color: var(--red);
+}
+
+.modal-content input[type="password"]::placeholder {
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
+#btn-save-key {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--red);
+  color: var(--paper);
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.2s var(--ease);
+}
+
+#btn-save-key:hover {
+  background: var(--red-glow);
+}
+
+.modal-hint {
+  font-size: 11px !important;
+  color: var(--text-dim) !important;
+  opacity: 0.7;
+  margin-top: 12px;
+  margin-bottom: 0 !important;
+}
